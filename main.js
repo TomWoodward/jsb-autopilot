@@ -371,6 +371,22 @@ class Autopilot {
     }
   };
 
+  const ramJamro = (state, control) => {
+    const [enemy] = Object.values(enemies)
+
+    if (enemy && state.collisions.enemy) {
+      return {command: {THROTTLE: -1, BOOST: 1}, until: tick + 10}
+    } else if (enemy) {
+      const targetAngle = Math.deg.atan2(enemy.y - state.y, enemy.x - state.x);
+      const distance = Math.distance(enemy.x, enemy.y, state.x, state.y);
+
+      if (Math.abs(targetAngle - state.angle) < 10 && distance < 100) {
+        const angleDiff = Math.deg.normalize(targetAngle - state.angle);
+        return {command: {TURN: angleDiff, THROTTLE: 1, BOOST: 1}}
+      }
+    }
+  };
+
   const dodgeBullets = (state, control) => {
     if (state.radar.bullets.filter(bullet => bullet.damage > 8).length > 0) {
       console.log('CRAZY IVAN');
@@ -483,6 +499,7 @@ class Autopilot {
       shootAtVisibleTanks,
       tryToMaintainDistance,
       dodgeBullets,
+      ramJamro,
       avoidCollidingWithWalls,
       avoidSelfCollision,
     ].reduce((result, strategy) => {
@@ -494,7 +511,7 @@ class Autopilot {
       }
 
       const value = strategy(state, control);
-      const instructions = value instanceof Array ? instruction : value ? [value] : [];
+      const instructions = value instanceof Array ? value : value ? [value] : [];
 
       if (instructions[0] && instructions[0].command) {
         Object.assign(control, instructions[0].command);
