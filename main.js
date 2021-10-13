@@ -407,7 +407,6 @@ class Autopilot {
     ].reduce((result, strategy) => {
       const instruction = strategy(state, control);
       Object.assign(control, instruction);
-      console.log(control, instruction);
     }, control);
   });
 
