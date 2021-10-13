@@ -323,7 +323,7 @@ class Autopilot {
       control.OUTBOX.push({type: 'enemy', enemy: enemies[state.radar.enemy.id]})
     }
 
-    (control.INBOX || [])
+    (state.radio.inbox || [])
       .filter(message => message.type === 'enemy')
       .forEach(message => enemies[message.enemy.id] = message.enemy)
     ;
@@ -369,7 +369,10 @@ class Autopilot {
   }
 
   const shootAtVisibleTanks = (state, control) => {
-    const [enemy] = Object.values(enemies)
+    const enemyIds = Object.keys(enemies)
+    enemyIds.sort()
+    const enemy = enemyIds.length > 0 && enemies[enemyIds[0]];
+
     if (enemy) {
       const instruction = autopilot.shootEnemy(enemy);
       const distance = Math.distance(enemy.x, enemy.y, state.x, state.y);
