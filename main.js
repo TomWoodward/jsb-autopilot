@@ -380,7 +380,7 @@ class Autopilot {
       const targetAngle = Math.deg.atan2(enemy.y - state.y, enemy.x - state.x);
       const distance = Math.distance(enemy.x, enemy.y, state.x, state.y);
 
-      if (Math.abs(targetAngle - state.angle) < 10 && distance < 100) {
+      if (Math.abs(targetAngle - state.angle) < 20 && distance < 100) {
         const angleDiff = Math.deg.normalize(targetAngle - state.angle);
         return {command: {TURN: angleDiff, THROTTLE: 1, BOOST: 1}}
       }
