@@ -285,7 +285,9 @@ class Autopilot {
   const autopilot = new Autopilot();
   const enemies = {};
   const friendlies = {};
+  var avoidingWalls = 0;
   var tick = 0;
+
   // end rando data
 
   // start strategies
@@ -357,15 +359,19 @@ class Autopilot {
     const throttleInstruction = {THROTTLE: 0}
 
     if (positionInTicks.x <= autopilot.origin.x) {
+      avoidingWalls = tick;
       return {TURN: state.angle > 0 ? -1 : 1, ...throttleInstruction};
     }
     if (positionInTicks.x >= autopilot.origin.x + Constants.BATTLEFIELD_WIDTH) {
+      avoidingWalls = tick;
       return {TURN: state.angle > 0 ? 1 : -1, ...throttleInstruction};
     }
     if (positionInTicks.y <= autopilot.origin.y) {
+      avoidingWalls = tick;
       return {TURN: Math.abs(state.angle) < 90 ? 1 : -1, ...throttleInstruction};
     }
     if (positionInTicks.y >= autopilot.origin.y + Constants.BATTLEFIELD_HEIGHT) {
+      avoidingWalls = tick;
       return {TURN: Math.abs(state.angle) < 90 ? -1 : 1, ...throttleInstruction};
     }
   };
@@ -380,7 +386,7 @@ class Autopilot {
   });
 
   const moveRandomly = (state, control) => ({
-    TURN: Math.floor(Math.random() * 20) == 2 ? Math.random()*2 - 1 : control.TURN,
+    TURN: avoidingWalls < tick - 50 && Math.floor(Math.random() * 20) == 2 ? Math.random()*2 - 1 : control.TURN,
   });
 
   // end strategies
