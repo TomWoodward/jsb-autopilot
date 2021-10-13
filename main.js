@@ -283,6 +283,7 @@ class Autopilot {
 
   // rando data
   const autopilot = new Autopilot();
+  let commandMemory = []; // {command: Partial<Command>, until: number}
   const enemies = {};
   const friendlies = {};
   var avoidingWalls = 0;
@@ -354,6 +355,12 @@ class Autopilot {
     }
   };
 
+  const applyCommandMemory = (state, control) => {
+    commandMemory = commandMemory.filter(record => record.until > tick);
+    console.log(commandMemory);
+    return commandMemory.reduce((result, memory) => ({...memory.command, ...result}), {});
+  };
+
   const avoidCollidingWithWalls = (state, control) => {
     // TODO - use some number of ticks based on speed
     let positionInTicks = autopilot.extrapolatedOuterPosition(30);
@@ -367,20 +374,16 @@ class Autopilot {
     const throttleInstruction = {THROTTLE: 0}
 
     if (positionInTicks.x <= autopilot.origin.x) {
-      avoidingWalls = tick;
-      return {TURN: state.angle > 0 ? -1 : 1, ...throttleInstruction};
+      commandMemory.push({command: {TURN: state.angle > 0 ? -1 : 1, ...throttleInstruction}, until: tick + 20})
     }
     if (positionInTicks.x >= autopilot.origin.x + Constants.BATTLEFIELD_WIDTH) {
-      avoidingWalls = tick;
-      return {TURN: state.angle > 0 ? 1 : -1, ...throttleInstruction};
+      commandMemory.push({command: {TURN: state.angle > 0 ? 1 : -1, ...throttleInstruction}, until: tick + 20})
     }
     if (positionInTicks.y <= autopilot.origin.y) {
-      avoidingWalls = tick;
-      return {TURN: Math.abs(state.angle) < 90 ? 1 : -1, ...throttleInstruction};
+      commandMemory.push({command: {TURN: Math.abs(state.angle) < 90 ? 1 : -1, ...throttleInstruction}, until: tick + 20})
     }
     if (positionInTicks.y >= autopilot.origin.y + Constants.BATTLEFIELD_HEIGHT) {
-      avoidingWalls = tick;
-      return {TURN: Math.abs(state.angle) < 90 ? -1 : 1, ...throttleInstruction};
+      commandMemory.push({command: {TURN: Math.abs(state.angle) < 90 ? -1 : 1, ...throttleInstruction}, until: tick + 20})
     }
   };
 
@@ -394,7 +397,7 @@ class Autopilot {
   });
 
   const moveRandomly = (state, control) => ({
-    TURN: avoidingWalls < tick - 100 && Math.floor(Math.random() * 20) == 2 ? Math.random()*2 - 1 : control.TURN,
+    TURN: Math.floor(Math.random() * 20) == 2 ? Math.random()*2 - 1 : control.TURN,
   });
 
   // end strategies
@@ -419,6 +422,7 @@ class Autopilot {
       moveRandomly,
       shootAtVisibleTanks,
       avoidCollidingWithWalls,
+      applyCommandMemory,
     ].reduce((result, strategy) => {
       const instruction = strategy(state, control);
       Object.assign(control, instruction);
