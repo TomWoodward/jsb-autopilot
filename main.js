@@ -357,7 +357,7 @@ class Autopilot {
 
   const applyCommandMemory = (state, control) => {
     commandMemory = commandMemory.filter(record => record.until > tick);
-    console.log(commandMemory);
+    // console.log(commandMemory);
     return commandMemory.reduce((result, memory) => ({...memory.command, ...result}), {});
   };
 
@@ -400,6 +400,12 @@ class Autopilot {
     TURN: Math.floor(Math.random() * 20) == 2 ? Math.random()*2 - 1 : control.TURN,
   });
 
+  const avoidSelfCollision = (state, control) => {
+    if (state.collisions.ally) {
+      commandMemory.push({command: { THROTTLE: -1, TURN: Math.random()*2 - 1}, until: tick + 50 })
+    }
+  };
+
   // end strategies
 
   tank.init(function(settings, info) {
@@ -422,6 +428,7 @@ class Autopilot {
       moveRandomly,
       shootAtVisibleTanks,
       avoidCollidingWithWalls,
+      avoidSelfCollision,
       applyCommandMemory,
     ].reduce((result, strategy) => {
       const instruction = strategy(state, control);
