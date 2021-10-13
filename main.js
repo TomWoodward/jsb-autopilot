@@ -383,10 +383,10 @@ class Autopilot {
       avoidCollidingWithWalls,
       trackNearbyEnemies,
       shootAtVisibleTanks,
+      moveRandomly,
       alwaysBeScanning,
       alwaysBeShooting,
       alwaysBeDriving,
-      moveRandomly
     ]
       .map(strategy => strategy(state, control))
       .reduce((result, action) => ({...action, ...result}), {})
