@@ -331,6 +331,14 @@ class Autopilot {
     }
   };
 
+  const lockRadarOnNearbyEnemies = (state, control) => {
+    const [enemy, ...otherEnemies] = Object.values(enemies)
+
+    if (enemy && otherEnemies.length === 0) {
+      autopilot.lookAtEnemy(enemy);
+    }
+  };
+
   const alwaysBeScanning = (state, control) => {
     return {RADAR_TURN: 1};
   }
@@ -386,7 +394,7 @@ class Autopilot {
   });
 
   const moveRandomly = (state, control) => ({
-    TURN: avoidingWalls < tick - 50 && Math.floor(Math.random() * 20) == 2 ? Math.random()*2 - 1 : control.TURN,
+    TURN: avoidingWalls < tick - 100 && Math.floor(Math.random() * 20) == 2 ? Math.random()*2 - 1 : control.TURN,
   });
 
   // end strategies
@@ -407,6 +415,7 @@ class Autopilot {
       alwaysBeScanning,
       alwaysBeShooting,
       alwaysBeDriving,
+      lockRadarOnNearbyEnemies,      
       moveRandomly,
       shootAtVisibleTanks,
       avoidCollidingWithWalls,
