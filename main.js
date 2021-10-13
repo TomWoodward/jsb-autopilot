@@ -333,7 +333,7 @@ class Autopilot {
   });
 
   const moveRandomly = (state, control) => ({
-    TURN: Math.floor(Math.random() * 20) == 2 ? Math.random()*10 - 5 : control.TURN,
+    TURN: Math.floor(Math.random() * 20) == 2 ? Math.random()*2 - 1 : control.TURN,
     THROTTLE: 0,
   });
 
