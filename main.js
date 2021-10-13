@@ -233,6 +233,7 @@ class Autopilot {
 
   shootEnemy(enemy) {
     if (!enemy) { return }
+    const instruction = {};
 
     // predict position of moving target
     let bulletSpeed = 4;
@@ -246,12 +247,14 @@ class Autopilot {
 
     // point the gun at the target
     let angleDiff = Math.deg.normalize(gunAngle - this.state.gun.angle);
-    this.control.GUN_TURN = 0.3 * angleDiff;
+    instruction.GUN_TURN = this.control.GUN_TURN = 0.3 * angleDiff;
 
     // shoot when aiming at target
     if(Math.abs(angleDiff) < 2) {
-      this.control.SHOOT = 0.1;
+      instruction.SHOOT = this.control.SHOOT = 0.1;
     }
+
+    return instruction;
   }
 
   extrapolatedPosition(inTicks) {
@@ -280,14 +283,11 @@ class Autopilot {
 
   // rando data
   const autopilot = new Autopilot();
+  const enemies = {};
+  var tick = 0;
   // end rando data
 
-  // start strategies 
-
-  const updateAutopilot = (state, control) => {
-    autopilot.update(state, control);
-    return {};
-  }
+  // start strategies
 
   const discoverOrigin = (state, control) => {
     if (autopilot.isOriginKnown()) {
@@ -296,6 +296,37 @@ class Autopilot {
 
     return {RADAR_TURN: 1};
   }
+
+  const ticksToRotateRadar = 60;
+  const trackNearbyEnemies = (state, control) => {
+    if (state.radar.enemy) {
+      enemies[state.radar.enemy.id] = {
+        removeAfter: tick + ticksToRotateRadar,
+        ...state.radar.enemy
+      };
+    }
+
+    for (const key of Object.keys(enemies)) {
+      if (enemies[key].removeAfter < tick) {
+        delete enemies[key]
+      }
+    }
+  };
+
+  const alwaysBeScanning = (state, control) => {
+    return {RADAR_TURN: 1};
+  }
+
+  const shootAtVisibleTanks = (state, control) => {
+    const [enemy] = Object.values(enemies)
+    if (enemy) {
+      const instruction = autopilot.shootEnemy(enemy);
+      if (instruction.SHOOT) {
+        instruction.SHOOT = 1;
+      }
+      return instruction;
+    }
+  };
 
   const avoidCollidingWithWalls = (state, control) => {
     // TODO - use some number of ticks based on speed
@@ -327,7 +358,7 @@ class Autopilot {
     TURN: 0,
     THROTTLE: 1,
   });
-  
+
   const alwaysBeShooting = (state, control) => ({
     GUN_TURN: 0,
     SHOOT: 0.1,
@@ -339,14 +370,17 @@ class Autopilot {
 
   });
 
-  var tick = 0;
   tank.loop(function(state, control) {
     tick++;
 
+    autopilot.update(state, control);
+
     const instructions = [
-      updateAutopilot,
       discoverOrigin,
       avoidCollidingWithWalls,
+      trackNearbyEnemies,
+      shootAtVisibleTanks,
+      alwaysBeScanning,
       alwaysBeShooting,
       alwaysBeDriving
     ]
@@ -360,7 +394,7 @@ class Autopilot {
     control.SHOOT = instructions.SHOOT || 0;
     control.GUN_TURN = instructions.GUN_TURN || 0;
   });
-  
+
 
 }
 

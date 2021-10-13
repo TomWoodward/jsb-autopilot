@@ -236,6 +236,7 @@ class Autopilot {
 
   shootEnemy(enemy) {
     if (!enemy) { return }
+    const instruction = {};
 
     // predict position of moving target
     let bulletSpeed = 4;
@@ -249,11 +250,11 @@ class Autopilot {
 
     // point the gun at the target
     let angleDiff = Math.deg.normalize(gunAngle - this.state.gun.angle);
-    this.control.GUN_TURN = 0.3 * angleDiff;
+    instruction.GUN_TURN = this.control.GUN_TURN = 0.3 * angleDiff;
 
     // shoot when aiming at target
     if(Math.abs(angleDiff) < 2) {
-      this.control.SHOOT = 0.1;
+      instruction.SHOOT = this.control.SHOOT = 0.1;
     }
   }
 
