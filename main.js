@@ -374,16 +374,35 @@ class Autopilot {
     const throttleInstruction = {THROTTLE: 0}
 
     if (positionInTicks.x <= autopilot.origin.x) {
-      commandMemory.push({command: {TURN: state.angle > 0 ? -1 : 1, ...throttleInstruction}, until: tick + 20})
+      commandMemory.push({command: {TURN: state.angle > 0 ? -1 : 1, ...throttleInstruction}, until: tick + 50})
     }
     if (positionInTicks.x >= autopilot.origin.x + Constants.BATTLEFIELD_WIDTH) {
-      commandMemory.push({command: {TURN: state.angle > 0 ? 1 : -1, ...throttleInstruction}, until: tick + 20})
+      commandMemory.push({command: {TURN: state.angle > 0 ? 1 : -1, ...throttleInstruction}, until: tick + 50})
     }
     if (positionInTicks.y <= autopilot.origin.y) {
-      commandMemory.push({command: {TURN: Math.abs(state.angle) < 90 ? 1 : -1, ...throttleInstruction}, until: tick + 20})
+      commandMemory.push({command: {TURN: Math.abs(state.angle) < 90 ? 1 : -1, ...throttleInstruction}, until: tick + 50})
     }
     if (positionInTicks.y >= autopilot.origin.y + Constants.BATTLEFIELD_HEIGHT) {
-      commandMemory.push({command: {TURN: Math.abs(state.angle) < 90 ? -1 : 1, ...throttleInstruction}, until: tick + 20})
+      commandMemory.push({command: {TURN: Math.abs(state.angle) < 90 ? -1 : 1, ...throttleInstruction}, until: tick + 50})
+    }
+  };
+
+  const tryToMaintainDistance = (state, control) => {
+    const [enemy, ...otherEnemies] = Object.values(enemies)
+
+    if (enemy && otherEnemies.length === 0) {
+      const distance = Math.distance(enemy.x, enemy.y, state.x, state.y);
+
+      if (distance < 50) {
+        let targetAngle = Math.deg.atan2(enemy.y - state.y, enemy.x - state.x);
+        let angleDiff = Math.deg.normalize(targetAngle - state.angle);
+        return {TURN: angleDiff * -1}
+      }
+      if (distance > 250) {
+        let targetAngle = Math.deg.atan2(enemy.y - state.y, enemy.x - state.x);
+        let angleDiff = Math.deg.normalize(targetAngle - state.angle);
+        return {TURN: angleDiff}
+      }
     }
   };
 
@@ -430,6 +449,7 @@ class Autopilot {
       lockRadarOnNearbyEnemies,      
       moveRandomly,
       shootAtVisibleTanks,
+      tryToMaintainDistance,
       avoidCollidingWithWalls,
       avoidSelfCollision,
       applyCommandMemory,
