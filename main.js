@@ -394,26 +394,21 @@ class Autopilot {
 
     autopilot.update(state, control);
 
-    const instructions = [
+    [
       discoverOrigin,
-      avoidCollidingWithWalls,
       trackNearbyEnemies,
       trackNearbyFriendlies,
-      shootAtVisibleTanks,
-      moveRandomly,
       alwaysBeScanning,
       alwaysBeShooting,
       alwaysBeDriving,
-    ]
-      .map(strategy => strategy(state, control))
-      .reduce((result, action) => ({...action, ...result}), {})
-    ;
-
-    control.THROTTLE = instructions.THROTTLE || 0;
-    control.TURN = instructions.TURN || 0;
-    control.RADAR_TURN = instructions.RADAR_TURN || 0;
-    control.SHOOT = instructions.SHOOT || 0;
-    control.GUN_TURN = instructions.GUN_TURN || 0;
+      moveRandomly,
+      shootAtVisibleTanks,
+      avoidCollidingWithWalls,
+    ].reduce((result, strategy) => {
+      const instruction = strategy(state, control);
+      Object.assign(control, instruction);
+      console.log(control, instruction);
+    }, control);
   });
 
 
