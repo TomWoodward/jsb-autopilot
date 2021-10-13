@@ -294,7 +294,7 @@ class Autopilot {
 
   const crazyIvan = (state, control) => {
     return {
-      until: tick + 20,
+      until: tick + 15,
       command: {
         TURN: Math.random() > 0.5 ? 1 : 0,
         BOOST: 1,
@@ -320,7 +320,13 @@ class Autopilot {
         removeAfter: tick + ticksToRotateRadar,
         ...state.radar.enemy
       };
+      control.OUTBOX.push({type: 'enemy', enemy: enemies[state.radar.enemy.id]})
     }
+
+    (control.INBOX || [])
+      .filter(message => message.type === 'enemy')
+      .forEach(message => enemies[message.enemy.id] = message.enemy)
+    ;
 
     for (const key of Object.keys(enemies)) {
       if (enemies[key].removeAfter < tick) {
@@ -335,7 +341,13 @@ class Autopilot {
         removeAfter: tick + ticksToRotateRadar,
         ...state.radar.ally
       };
+      control.OUTBOX.push({type: 'friendly', friendly: friendlies[state.radar.ally.id]})
     }
+    
+    (control.INBOX || [])
+      .filter(message => message.type === 'friendly')
+      .forEach(message => friendlies[message.friendly.id] = message.friendly)
+    ;
 
     for (const key of Object.keys(friendlies)) {
       if (friendlies[key].removeAfter < tick) {
@@ -375,12 +387,13 @@ class Autopilot {
     const [enemy] = Object.values(enemies)
 
     if (enemy && state.collisions.enemy) {
-      return {command: {THROTTLE: -1, BOOST: 1}, until: tick + 10}
+      return {command: {THROTTLE: -1, BOOST: 1}, until: tick + 20}
     } else if (enemy) {
       const targetAngle = Math.deg.atan2(enemy.y - state.y, enemy.x - state.x);
       const distance = Math.distance(enemy.x, enemy.y, state.x, state.y);
 
       if (Math.abs(targetAngle - state.angle) < 20 && distance < 100) {
+        console.log('RAMMING SPEED');
         const angleDiff = Math.deg.normalize(targetAngle - state.angle);
         return {command: {TURN: angleDiff, THROTTLE: 1, BOOST: 1}}
       }
