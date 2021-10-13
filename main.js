@@ -477,9 +477,9 @@ class Autopilot {
 
   const moveToEnemy = (state, control) => {
     if (state.radio.inbox.length > 0) {
-      enemy = state.radio.inbox[0].enemy
-      if (enemy) {
-        autopilot.moveToPoint(enemy.x, enemy.y);
+      distantEnemy = state.radio.inbox[0].enemy
+      if (distantEnemy && !state.radar.enemy) {
+        state.radar.enemy = distantEnemy;
       }
     }
   };
