@@ -324,13 +324,16 @@ class Autopilot {
   };
 
   const alwaysBeDriving = (state, control) => ({
-    TURN: 0,
     THROTTLE: 1,
   });
   
   const alwaysBeShooting = (state, control) => ({
     GUN_TURN: 0,
     SHOOT: 0.1,
+  });
+
+  const moveRandomly = (state, control) => ({
+    TURN: Math.floor(Math.random() * 20) == 2 ? Math.random()*2 - 1 : control.TURN,
   });
 
   // end strategies
@@ -348,7 +351,8 @@ class Autopilot {
       discoverOrigin,
       avoidCollidingWithWalls,
       alwaysBeShooting,
-      alwaysBeDriving
+      alwaysBeDriving,
+      moveRandomly
     ]
       .map(strategy => strategy(state, control))
       .reduce((result, action) => ({...action, ...result}), {})
