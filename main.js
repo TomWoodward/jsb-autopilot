@@ -284,6 +284,7 @@ class Autopilot {
   // rando data
   const autopilot = new Autopilot();
   const enemies = {};
+  const friendlies = {};
   var tick = 0;
   // end rando data
 
@@ -309,6 +310,21 @@ class Autopilot {
     for (const key of Object.keys(enemies)) {
       if (enemies[key].removeAfter < tick) {
         delete enemies[key]
+      }
+    }
+  };
+
+  const trackNearbyFriendlies = (state, control) => {
+    if (state.radar.ally) {
+      friendlies[state.radar.ally.id] = {
+        removeAfter: tick + ticksToRotateRadar,
+        ...state.radar.ally
+      };
+    }
+
+    for (const key of Object.keys(friendlies)) {
+      if (friendlies[key].removeAfter < tick) {
+        delete friendlies[key]
       }
     }
   };
@@ -382,6 +398,7 @@ class Autopilot {
       discoverOrigin,
       avoidCollidingWithWalls,
       trackNearbyEnemies,
+      trackNearbyFriendlies,
       shootAtVisibleTanks,
       moveRandomly,
       alwaysBeScanning,
