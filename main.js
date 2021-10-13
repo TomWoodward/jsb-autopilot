@@ -344,7 +344,7 @@ class Autopilot {
       control.OUTBOX.push({type: 'friendly', friendly: friendlies[state.radar.ally.id]})
     }
     
-    (control.INBOX || [])
+    (state.radio.inbox || [])
       .filter(message => message.type === 'friendly')
       .forEach(message => friendlies[message.friendly.id] = message.friendly)
     ;
