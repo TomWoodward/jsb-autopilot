@@ -360,7 +360,11 @@ class Autopilot {
     const [enemy] = Object.values(enemies)
     if (enemy) {
       const instruction = autopilot.shootEnemy(enemy);
-      if (instruction.SHOOT && Math.random() > 0.7) {
+      const distance = Math.distance(enemy.x, enemy.y, state.x, state.y);
+      if (
+        distance < 50 ||
+        (instruction.SHOOT && distance < 150 && enemy.speed < 2 && Math.random() > 0.5)
+      ) {
         instruction.SHOOT = 1;
       }
       return {command: instruction};
@@ -490,7 +494,7 @@ class Autopilot {
       }
 
       const value = strategy(state, control);
-      const instructions = value instanceof Array ? instruction : value ? [value] : []; 
+      const instructions = value instanceof Array ? instruction : value ? [value] : [];
 
       if (instructions[0] && instructions[0].command) {
         Object.assign(control, instructions[0].command);
