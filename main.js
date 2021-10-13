@@ -475,6 +475,15 @@ class Autopilot {
     }
   };
 
+  const moveToEnemy = (state, control) => {
+    if (state.radio.inbox.length > 0) {
+      enemy = state.radio.inbox[0].enemy
+      if (enemy) {
+        autopilot.moveToPoint(enemy.x, enemy.y);
+      }
+    }
+  };
+
   // end strategies
 
   tank.init(function(settings, info) {
@@ -495,6 +504,7 @@ class Autopilot {
       alwaysBeDriving,
       lockRadarOnNearbyEnemies,
       moveRandomly,
+      moveToEnemy,
       trackLastKnownEnemy,
       shootAtVisibleTanks,
       tryToMaintainDistance,
@@ -521,6 +531,10 @@ class Autopilot {
       }
 
     }, control);
+
+    if (state.radar.enemy) {
+      control.OUTBOX.push({ "enemy": state.radar.enemy });
+    }
   });
 
 
