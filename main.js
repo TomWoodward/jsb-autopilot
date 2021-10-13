@@ -285,6 +285,7 @@ class Autopilot {
   const commandMemory = new Map();
   const autopilot = new Autopilot();
   const enemies = {};
+  let lastKnownEnemy;
   const friendlies = {};
   var avoidingWalls = 0;
   var tick = 0;
@@ -373,6 +374,21 @@ class Autopilot {
     }
   };
 
+  const trackLastKnownEnemy = (state, control) => {
+    const [enemy] = Object.values(enemies)
+
+    if (enemy) {
+      lastKnownEnemy = enemy;
+    }
+
+    if (lastKnownEnemy) {
+      const targetAngle = Math.deg.atan2(lastKnownEnemy.y - state.y, lastKnownEnemy.x - state.x);
+      const gunAngle = Math.deg.normalize(targetAngle - state.angle);
+      const angleDiff = Math.deg.normalize(gunAngle - state.gun.angle);
+      return {command: {GUN_TURN: 0.3 * angleDiff}};
+    }
+  };
+
   const avoidCollidingWithWalls = (state, control) => {
     // TODO - use some number of ticks based on speed
     let positionInTicks = autopilot.extrapolatedOuterPosition(30);
@@ -432,7 +448,10 @@ class Autopilot {
 
   const avoidSelfCollision = (state, control) => {
     if (state.collisions.ally) {
-      return {command: { THROTTLE: -1, TURN: Math.random()*2 - 1}, until: tick + 50 }
+      return [
+        {command: { THROTTLE: -1, TURN: Math.random()*2 - 1}, until: tick + 50 },
+        {command: { THROTTLE: 1, TURN: Math.random()*2 - 1 }, until: tick + 100}
+      ]
     }
   };
 
@@ -456,26 +475,28 @@ class Autopilot {
       alwaysBeDriving,
       lockRadarOnNearbyEnemies,
       moveRandomly,
+      trackLastKnownEnemy,
       shootAtVisibleTanks,
       tryToMaintainDistance,
       dodgeBullets,
       avoidCollidingWithWalls,
       avoidSelfCollision,
     ].reduce((result, strategy) => {
-      const memory = commandMemory.get(strategy);
-      if (memory && memory.until < tick) {
-        commandMemory.delete(strategy);
-      } else if (memory) {
-        return Object.assign(control, memory.command);
+      const memory = (commandMemory.get(strategy) || []).filter(record => record.until > tick);
+      commandMemory.set(memory);
+
+      if (memory[0]) {
+        return Object.assign(control, memory[0].command);
       }
 
-      const instruction = strategy(state, control);
+      const value = strategy(state, control);
+      const instructions = value instanceof Array ? instruction : value ? [value] : []; 
 
-      if (instruction && instruction.command) {
-        Object.assign(control, instruction.command);
+      if (instructions[0] && instructions[0].command) {
+        Object.assign(control, instructions[0].command);
       }
-      if (instruction && instruction.command && instruction.until) {
-        commandMemory.set(strategy, instruction);
+      if (instructions.length > 0) {
+        commandMemory.set(strategy, instructions);
       }
 
     }, control);
