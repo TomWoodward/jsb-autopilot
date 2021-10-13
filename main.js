@@ -357,8 +357,8 @@ class Autopilot {
 
   const applyCommandMemory = (state, control) => {
     commandMemory = commandMemory.filter(record => record.until > tick);
-    // console.log(commandMemory);
-    return commandMemory.reduce((result, memory) => ({...memory.command, ...result}), {});
+    return commandMemory.filter(record => record.after < tick || !record.after) 
+                        .reduce((result, memory) => ({...memory.command, ...result}), {});
   };
 
   const avoidCollidingWithWalls = (state, control) => {
@@ -403,6 +403,9 @@ class Autopilot {
   const avoidSelfCollision = (state, control) => {
     if (state.collisions.ally) {
       commandMemory.push({command: { THROTTLE: -1, TURN: Math.random()*2 - 1}, until: tick + 50 })
+      commandMemory.push(
+        { command: { THROTTLE: 1, TURN: Math.random()*2 - 1 }, after: tick+ 50, until: tick + 100 }
+      )
     }
   };
 
