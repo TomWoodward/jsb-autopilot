@@ -282,8 +282,8 @@ class Autopilot {
 }
 
   // rando data
+  const commandMemory = new Map();
   const autopilot = new Autopilot();
-  let commandMemory = []; // {command: Partial<Command>, until: number}
   const enemies = {};
   const friendlies = {};
   var avoidingWalls = 0;
@@ -291,14 +291,25 @@ class Autopilot {
 
   // end rando data
 
+  const crazyIvan = (state, control) => {
+    return {
+      until: tick + 20,
+      command: {
+        TURN: Math.random() > 0.5 ? 1 : 0,
+        BOOST: 1,
+        THROTTLE: Math.ceil(control.THROTTLE * -1)
+      }
+    };
+  };
+
   // start strategies
 
   const discoverOrigin = (state, control) => {
     if (autopilot.isOriginKnown()) {
-      return {};
+      return;
     }
 
-    return {RADAR_TURN: 1};
+    return {command: {RADAR_TURN: 1}};
   }
 
   const ticksToRotateRadar = 60;
@@ -341,23 +352,25 @@ class Autopilot {
   };
 
   const alwaysBeScanning = (state, control) => {
-    return {RADAR_TURN: 1};
+    return {command: {RADAR_TURN: 1}};
   }
 
   const shootAtVisibleTanks = (state, control) => {
     const [enemy] = Object.values(enemies)
     if (enemy) {
       const instruction = autopilot.shootEnemy(enemy);
-      if (instruction.SHOOT) {
+      if (instruction.SHOOT && Math.random() > 0.7) {
         instruction.SHOOT = 1;
       }
-      return instruction;
+      return {command: instruction};
     }
   };
 
-  const applyCommandMemory = (state, control) => {
-    commandMemory = commandMemory.filter(record => record.until > tick);
-    return commandMemory.reduce((result, memory) => ({...memory.command, ...result}), {});
+  const dodgeBullets = (state, control) => {
+    if (state.radar.bullets.filter(bullet => bullet.damage > 8).length > 0) {
+      console.log('CRAZY IVAN');
+      return crazyIvan(state, control);
+    }
   };
 
   const avoidCollidingWithWalls = (state, control) => {
@@ -373,16 +386,16 @@ class Autopilot {
     const throttleInstruction = {THROTTLE: 0}
 
     if (positionInTicks.x <= autopilot.origin.x) {
-      commandMemory.push({command: {TURN: state.angle > 0 ? -1 : 1, ...throttleInstruction}, until: tick + 50})
+      return {command: {TURN: state.angle > 0 ? -1 : 1, ...throttleInstruction}, until: tick + 50}
     }
     if (positionInTicks.x >= autopilot.origin.x + Constants.BATTLEFIELD_WIDTH) {
-      commandMemory.push({command: {TURN: state.angle > 0 ? 1 : -1, ...throttleInstruction}, until: tick + 50})
+      return {command: {TURN: state.angle > 0 ? 1 : -1, ...throttleInstruction}, until: tick + 50}
     }
     if (positionInTicks.y <= autopilot.origin.y) {
-      commandMemory.push({command: {TURN: Math.abs(state.angle) < 90 ? 1 : -1, ...throttleInstruction}, until: tick + 50})
+      return {command: {TURN: Math.abs(state.angle) < 90 ? 1 : -1, ...throttleInstruction}, until: tick + 50}
     }
     if (positionInTicks.y >= autopilot.origin.y + Constants.BATTLEFIELD_HEIGHT) {
-      commandMemory.push({command: {TURN: Math.abs(state.angle) < 90 ? -1 : 1, ...throttleInstruction}, until: tick + 50})
+      return {command: {TURN: Math.abs(state.angle) < 90 ? -1 : 1, ...throttleInstruction}, until: tick + 50}
     }
   };
 
@@ -395,32 +408,31 @@ class Autopilot {
       if (distance < 50) {
         let targetAngle = Math.deg.atan2(enemy.y - state.y, enemy.x - state.x);
         let angleDiff = Math.deg.normalize(targetAngle - state.angle);
-        return {TURN: angleDiff * -1}
+        return {command: {TURN: angleDiff * -1}}
       }
       if (distance > 250) {
         let targetAngle = Math.deg.atan2(enemy.y - state.y, enemy.x - state.x);
         let angleDiff = Math.deg.normalize(targetAngle - state.angle);
-        return {TURN: angleDiff}
+        return {command: {TURN: angleDiff}}
       }
     }
   };
 
-  const alwaysBeDriving = (state, control) => ({
+  const alwaysBeDriving = (state, control) => ({command: {
     THROTTLE: 1,
-  });
+  }});
 
-  const alwaysBeShooting = (state, control) => ({
-    GUN_TURN: 0,
+  const alwaysBeShooting = (state, control) => ({command: {
     SHOOT: 0.1,
-  });
+  }});
 
-  const moveRandomly = (state, control) => ({
+  const moveRandomly = (state, control) => ({command: {
     TURN: Math.floor(Math.random() * 20) == 2 ? Math.random()*2 - 1 : control.TURN,
-  });
+  }});
 
   const avoidSelfCollision = (state, control) => {
     if (state.collisions.ally) {
-      commandMemory.push({command: { THROTTLE: -1, TURN: Math.random()*2 - 1}, until: tick + 50 })
+      return {command: { THROTTLE: -1, TURN: Math.random()*2 - 1}, until: tick + 50 }
     }
   };
 
@@ -442,16 +454,30 @@ class Autopilot {
       alwaysBeScanning,
       alwaysBeShooting,
       alwaysBeDriving,
-      lockRadarOnNearbyEnemies,      
+      lockRadarOnNearbyEnemies,
       moveRandomly,
       shootAtVisibleTanks,
       tryToMaintainDistance,
+      dodgeBullets,
       avoidCollidingWithWalls,
       avoidSelfCollision,
-      applyCommandMemory,
     ].reduce((result, strategy) => {
+      const memory = commandMemory.get(strategy);
+      if (memory && memory.until < tick) {
+        commandMemory.delete(strategy);
+      } else if (memory) {
+        return Object.assign(control, memory.command);
+      }
+
       const instruction = strategy(state, control);
-      Object.assign(control, instruction);
+
+      if (instruction && instruction.command) {
+        Object.assign(control, instruction.command);
+      }
+      if (instruction && instruction.command && instruction.until) {
+        commandMemory.set(strategy, instruction);
+      }
+
     }, control);
   });
 
