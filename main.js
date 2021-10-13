@@ -418,6 +418,12 @@ class Autopilot {
     TURN: Math.floor(Math.random() * 20) == 2 ? Math.random()*2 - 1 : control.TURN,
   });
 
+  const avoidSelfCollision = (state, control) => {
+    if (state.collisions.ally) {
+      commandMemory.push({command: { THROTTLE: -1, TURN: Math.random()*2 - 1}, until: tick + 50 })
+    }
+  };
+
   // end strategies
 
   tank.init(function(settings, info) {
@@ -441,6 +447,7 @@ class Autopilot {
       shootAtVisibleTanks,
       tryToMaintainDistance,
       avoidCollidingWithWalls,
+      avoidSelfCollision,
       applyCommandMemory,
     ].reduce((result, strategy) => {
       const instruction = strategy(state, control);
