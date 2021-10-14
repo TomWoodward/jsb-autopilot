@@ -317,7 +317,7 @@ class Autopilot {
   const trackNearbyEnemies = (state, control) => {
     if (state.radar.enemy) {
       enemies[state.radar.enemy.id] = {
-        removeAfter: tick + ticksToRotateRadar,
+        removeAfter: tick + (ticksToRotateRadar / 3),
         ...state.radar.enemy
       };
       control.OUTBOX.push({type: 'enemy', enemy: enemies[state.radar.enemy.id]})
