@@ -284,13 +284,25 @@ class Autopilot {
   // rando data
   const commandMemory = new Map();
   const autopilot = new Autopilot();
+  const ticksToRotateRadar = 60;
   const enemies = {};
+  const whosShootingWho = {};
   let lastKnownEnemy;
   const friendlies = {};
   var avoidingWalls = 0;
   var tick = 0;
+  var myId; 
 
   // end rando data
+
+  function sortByKey(array, key) {
+    return array.sort((a, b) => {
+      let x = a[key];
+      let y = b[key];
+
+      return x < y ? -1 : x > y ? 1 : 0;
+    });
+  }
 
   const crazyIvan = (state, control) => {
     return {
@@ -313,7 +325,6 @@ class Autopilot {
     return {command: {RADAR_TURN: 1}};
   }
 
-  const ticksToRotateRadar = 60;
   const trackNearbyEnemies = (state, control) => {
     if (state.radar.enemy) {
       enemies[state.radar.enemy.id] = {
@@ -343,16 +354,74 @@ class Autopilot {
       };
       control.OUTBOX.push({type: 'friendly', friendly: friendlies[state.radar.ally.id]})
     }
+
+    control.OUTBOX.push({type: 'friendly', friendly: {
+        x: state.x,
+        y: state.y,
+        id: myId,
+        angle: state.angle,
+      }
+    });
     
     (state.radio.inbox || [])
       .filter(message => message.type === 'friendly')
-      .forEach(message => friendlies[message.friendly.id] = message.friendly)
+      .forEach(message => friendlies[message.friendly.id] = {...friendlies[message.friendly.id], ...message.friendly})
     ;
 
     for (const key of Object.keys(friendlies)) {
       if (friendlies[key].removeAfter < tick) {
-        delete friendlies[key]
+        // angle is the only thing that gets stale, everything else will be re-added every tick
+        delete friendlies[key].angle
       }
+    }
+  };
+
+  const surroundEnemies = (state, control) => {
+    (state.radio.inbox || [])
+      .filter(message => message.type === 'shooting')
+      .forEach(message => whosShootingWho[message.me] = message.target)
+    ;
+
+    const imShootingId = whosShootingWho[String(myId)];
+    const imShootingEnemy = imShootingId && enemies[imShootingId];
+
+    if (!imShootingEnemy) {
+      return;
+    }
+    
+    const myAngle = Math.deg.atan2(imShootingEnemy.x - state.x, imShootingEnemy.y - state.y);
+
+    const alliesShootingSameWithAngle = Object.entries(whosShootingWho)
+      .filter(([friendlyId, imShootingEnemyId]) => friendlyId != myId && imShootingEnemyId === imShootingId)
+      .map(([friendlyId]) => {
+        return friendlies[String(friendlyId)]
+      })
+      .map(friendly => {
+        const angle = Math.deg.atan2(imShootingEnemy.x - friendly.x, imShootingEnemy.y - friendly.y);
+        const diff = Math.deg.normalize(myAngle - angle);
+        return {
+          friendly,
+          angle,
+          diff,
+          diffAbs: Math.abs(diff),
+        };
+      })
+    ;
+
+    sortByKey(alliesShootingSameWithAngle, 'diffAbs');
+
+    const closestAngle = alliesShootingSameWithAngle[0];
+
+    if (!closestAngle) {
+      return;
+    }
+    
+
+    const directionToMove = closestAngle['diff'] > 0 ? -1 : 1;
+    const idealAngle = Math.deg.atan2(imShootingEnemy.y - state.y, imShootingEnemy.x - state.x) - (90 * directionToMove);
+  
+    return {
+      TURN: Math.deg.normalize(idealAngle - state.angle)
     }
   };
 
@@ -372,15 +441,6 @@ class Autopilot {
     return { command: { GUN_TURN: -1 } };
   };
 
-  function sortByKey(array, key) {
-    return array.sort((a, b) => {
-      let x = a[key];
-      let y = b[key];
-
-      return x < y ? -1 : x > y ? 1 : 0;
-    });
-  }
-
   const shootAtVisibleTanks = (state, control) => {
     const enemyIds = Object.keys(enemies);
     let enemyDist = [];
@@ -395,6 +455,9 @@ class Autopilot {
     }
     sortByKey(enemyDist, "distance");
     const enemy = enemyIds.length > 0 && enemies[enemyDist[0].id];
+
+    whosShootingWho[String(myId)] = enemy.id;
+    control.OUTBOX.push({type: 'shooting', target: enemy.id, me: myId})
 
     if (enemy) {
       const instruction = autopilot.shootEnemy(enemy);
@@ -525,7 +588,7 @@ class Autopilot {
   // end strategies
 
   tank.init(function(settings, info) {
-
+    myId = info.id
   });
 
   tank.loop(function(state, control) {
@@ -546,6 +609,7 @@ class Autopilot {
       trackLastKnownEnemy,
       shootAtVisibleTanks,
       tryToMaintainDistance,
+      surroundEnemies,
       dodgeBullets,
       ramJamro,
       avoidCollidingWithWalls,
