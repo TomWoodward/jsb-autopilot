@@ -607,7 +607,9 @@ class Autopilot {
 
     sortByKey(tanksWithInfo, 'targetAngle');
 
-    if (tanksWithInfo.length < 1) {
+    const aReallyCloseTank = tanksWithInfo.find(info => info.distance < 50);
+
+    if (tanksWithInfo.length < 1 || !aReallyCloseTank) {
       return;
     }
 
@@ -684,8 +686,8 @@ class Autopilot {
       trackLastKnownEnemy,
       shootAtVisibleTanks,
       moveTowardsTarget,
-      dontGetTooClose,
       surroundEnemies,
+      dontGetTooClose,
       dodgeBullets,
       avoidCollidingWithWalls,
       ramJamro,
