@@ -704,7 +704,7 @@ class Autopilot {
       dontGetTooClose,
       dodgeBullets,
       avoidCollidingWithWalls,
-      dontShootAllies,
+      //dontShootAllies,
       ramJamro,
       avoidSelfCollision,
     ].reduce((result, strategy) => {
