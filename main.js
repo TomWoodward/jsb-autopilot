@@ -463,8 +463,8 @@ class Autopilot {
       const instruction = autopilot.shootEnemy(enemy);
       const distance = Math.distance(enemy.x, enemy.y, state.x, state.y);
       if (
-        distance < 100 ||
-        (instruction.SHOOT && distance < 200 && enemy.speed < 2 && Math.random() > 0.5)
+        distance < 50 ||
+        (instruction.SHOOT && distance < 180 && enemy.speed < 1)// && Math.random() > 0.25)
       ) {
         instruction.SHOOT = 1;
       }
@@ -580,11 +580,6 @@ class Autopilot {
     }
   };
 
-  const avoidShootingSelf = (state, control) => {
-    if (Math.abs(state.gunAngle - state.radarAngle) < 10 && state.radar.ally) {
-      control.SHOOT = 0;
-    }
-  };
   // end strategies
 
   tank.init(function(settings, info) {
@@ -614,7 +609,6 @@ class Autopilot {
       ramJamro,
       avoidCollidingWithWalls,
       avoidSelfCollision,
-      avoidShootingSelf,
     ].reduce((result, strategy) => {
       const memory = (commandMemory.get(strategy) || []).filter(record => record.until > tick);
       commandMemory.set(memory);
