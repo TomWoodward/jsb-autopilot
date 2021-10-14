@@ -487,6 +487,20 @@ class Autopilot {
     }
   };
 
+  const dontShootAllies = (state, control) => {
+
+    const allyInFront = Object.values(friendlies).find(ally => {
+      const targetAngle = Math.deg.atan2(ally.y - state.y, ally.x - state.x);
+      const angleDiff = Math.deg.normalize(targetAngle - state.gun.angle);
+
+      return Math.abs(angleDiff) < 15;
+    });
+
+    if (allyInFront) {
+      return {command: {SHOOT: 0}}
+    }
+  }
+
   const ramJamro = (state, control) => {
     if (state.energy < 50) {
       return
@@ -690,6 +704,7 @@ class Autopilot {
       dontGetTooClose,
       dodgeBullets,
       avoidCollidingWithWalls,
+      dontShootAllies,
       ramJamro,
       avoidSelfCollision,
     ].reduce((result, strategy) => {
