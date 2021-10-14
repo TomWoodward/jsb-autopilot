@@ -368,17 +368,40 @@ class Autopilot {
     return {command: {RADAR_TURN: 1}};
   }
 
+  const counterGunTurn = (state, control) => {
+    return { command: { GUN_TURN: -1 } };
+  };
+
+  function sortByKey(array, key) {
+    return array.sort((a, b) => {
+      let x = a[key];
+      let y = b[key];
+
+      return x < y ? -1 : x > y ? 1 : 0;
+    });
+  }
+
   const shootAtVisibleTanks = (state, control) => {
-    const enemyIds = Object.keys(enemies)
-    enemyIds.sort()
-    const enemy = enemyIds.length > 0 && enemies[enemyIds[0]];
+    const enemyIds = Object.keys(enemies);
+    let enemyDist = [];
+    if (enemyIds.length > 0) {
+      for (let e in enemyIds) {
+        eNow = enemies[enemyIds[e]];
+        enemyDist.push({
+          distance: Math.distance(eNow.x, eNow.y, state.x, state.y),
+          id: eNow.id,
+        });
+      }
+    }
+    sortByKey(enemyDist, "distance");
+    const enemy = enemyIds.length > 0 && enemies[enemyDist[0].id];
 
     if (enemy) {
       const instruction = autopilot.shootEnemy(enemy);
       const distance = Math.distance(enemy.x, enemy.y, state.x, state.y);
       if (
-        distance < 50 ||
-        (instruction.SHOOT && distance < 150 && enemy.speed < 2 && Math.random() > 0.5)
+        distance < 100 ||
+        (instruction.SHOOT && distance < 200 && enemy.speed < 2 && Math.random() > 0.5)
       ) {
         instruction.SHOOT = 1;
       }
@@ -395,7 +418,7 @@ class Autopilot {
       const targetAngle = Math.deg.atan2(enemy.y - state.y, enemy.x - state.x);
       const distance = Math.distance(enemy.x, enemy.y, state.x, state.y);
 
-      if (Math.abs(targetAngle - state.angle) < 20 && distance < 100) {
+      if (Math.abs(targetAngle - state.angle) < 20 && distance < 80) {
         console.log('RAMMING SPEED');
         const angleDiff = Math.deg.normalize(targetAngle - state.angle);
         return {command: {TURN: angleDiff, THROTTLE: 1, BOOST: 1}}
@@ -491,6 +514,11 @@ class Autopilot {
     }
   };
 
+  const avoidShootingSelf = (state, control) => {
+    if (Math.abs(state.gunAngle - state.radarAngle) < 10 && state.radar.ally) {
+      control.SHOOT = 0;
+    }
+  };
   // end strategies
 
   tank.init(function(settings, info) {
@@ -508,6 +536,7 @@ class Autopilot {
       trackNearbyFriendlies,
       alwaysBeScanning,
       alwaysBeShooting,
+      counterGunTurn,
       alwaysBeDriving,
       lockRadarOnNearbyEnemies,
       moveRandomly,
@@ -518,6 +547,7 @@ class Autopilot {
       ramJamro,
       avoidCollidingWithWalls,
       avoidSelfCollision,
+      avoidShootingSelf,
     ].reduce((result, strategy) => {
       const memory = (commandMemory.get(strategy) || []).filter(record => record.until > tick);
       commandMemory.set(memory);
@@ -537,6 +567,8 @@ class Autopilot {
       }
 
     }, control);
+
+    state.radio.inbox = [];
   });
 
 
