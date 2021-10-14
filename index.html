@@ -94,24 +94,28 @@
       }
     }
 
-    function getIsWin() {
+    function getScores() {
       const ourScore = simulation._teamMap[myTeamName].members.reduce((result, member) => result + member.score, 0)
       const theirScore = simulation._teamMap[otherTeamBot].members.reduce((result, member) => result + member.score, 0)
 
+      return [ourScore, theirScore];
+    }
+
+    function getIsWin(ourScore, theirScore) {
       return ourScore > theirScore ? 'win' : 'lose';
     }
 
     async function runBenchMark() {
       const results = {
-        chicken: {win: 0, lose: 0},
-        circler: {win: 0, lose: 0},
-        crawler: {win: 0, lose: 0},
-        crazy: {win: 0, lose: 0},
-        dodge: {win: 0, lose: 0},
-        dummy: {win: 0, lose: 0},
-        jamro: {win: 0, lose: 0},
-        kamikaze: {win: 0, lose: 0},
-        sniper: {win: 0, lose: 0},
+        chicken: {win: 0, lose: 0, theirScore: 0, ourScore: 0},
+        circler: {win: 0, lose: 0, theirScore: 0, ourScore: 0},
+        crawler: {win: 0, lose: 0, theirScore: 0, ourScore: 0},
+        crazy: {win: 0, lose: 0, theirScore: 0, ourScore: 0},
+        dodge: {win: 0, lose: 0, theirScore: 0, ourScore: 0},
+        dummy: {win: 0, lose: 0, theirScore: 0, ourScore: 0},
+        jamro: {win: 0, lose: 0, theirScore: 0, ourScore: 0},
+        kamikaze: {win: 0, lose: 0, theirScore: 0, ourScore: 0},
+        sniper: {win: 0, lose: 0, theirScore: 0, ourScore: 0},
       }
 
       for (const bot in results) {
@@ -119,7 +123,10 @@
 
         for (let i = 0; i < 10; i++) {
           await new Promise(resolve => restartSimulation(100, () => {
-            results[bot][getIsWin()]++;
+            scores = getScores();
+            results[bot]['theirScore'] += scores[1];
+            results[bot]['ourScore'] += scores[0];
+            results[bot][getIsWin(scores[0], scores[1])]++;
             console.log(results);
             resolve();
           }));
