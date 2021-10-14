@@ -94,12 +94,45 @@
       }
     }
 
-    function restartSimulation() {
+    function getIsWin() {
+      const ourScore = simulation._teamMap[myTeamName].members.reduce((result, member) => result + member.score, 0)
+      const theirScore = simulation._teamMap[otherTeamBot].members.reduce((result, member) => result + member.score, 0)
+
+      return ourScore > theirScore ? 'win' : 'lose';
+    }
+
+    async function runBenchMark() {
+      const results = {
+        chicken: {win: 0, lose: 0},
+        circler: {win: 0, lose: 0},
+        crawler: {win: 0, lose: 0},
+        crazy: {win: 0, lose: 0},
+        dodge: {win: 0, lose: 0},
+        dummy: {win: 0, lose: 0},
+        jamro: {win: 0, lose: 0},
+        kamikaze: {win: 0, lose: 0},
+        sniper: {win: 0, lose: 0},
+      }
+
+      for (const bot in results) {
+        otherTeamBot = bot;
+
+        for (let i = 0; i < 10; i++) {
+          await new Promise(resolve => restartSimulation(100, () => {
+            results[bot][getIsWin()]++;
+            console.log(results);
+            resolve();
+          }));
+        }
+      }
+    }
+
+    function restartSimulation(speed = 1, onFinish = () => {}) {
       simulation.stop();
 		  renderer = JsBattle.createRenderer('debug');
 	    renderer.init(canvas);
 	    simulation = JsBattle.createSimulation(renderer);
- 	  simulation.init(900, 600);
+      simulation.init(900, 600);
 
       battlefieldData = {
     	  width: simulation.battlefield._width,
@@ -112,6 +145,9 @@
 
   	  addTanks(myTeamSize, myCode, myTeamName);
       addTanks(otherTeamSize, bots[otherTeamBot], otherTeamBot);
+
+      simulation.setSpeed(speed);
+      simulation.onFinish(onFinish);
 
       simulation.start();
     }
