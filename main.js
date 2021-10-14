@@ -291,7 +291,7 @@ class Autopilot {
   const friendlies = {};
   var avoidingWalls = 0;
   var tick = 0;
-  var myId; 
+  var myId;
 
   // end rando data
 
@@ -314,6 +314,32 @@ class Autopilot {
       }
     };
   };
+
+  const whoShouldIShoot = (state, control) => {
+    const enemyIds = Object.keys(enemies);
+    let enemyDist = [];
+    if (enemyIds.length > 0) {
+      for (let e in enemyIds) {
+        eNow = enemies[enemyIds[e]];
+        enemyDist.push({
+          health: eNow.energy,
+          distance: Math.distance(eNow.x, eNow.y, state.x, state.y),
+          id: eNow.id,
+        });
+      }
+    }
+    sortByKey(enemyDist, "health");
+    const weakestEnemy = enemyIds.length > 0 && enemies[enemyDist[0].id];
+
+    if (weakestEnemy.energy < 40) {
+      return weakestEnemy;
+    }
+
+    sortByKey(enemyDist, "distance");
+    const closesetEnemy = enemyIds.length > 0 && enemies[enemyDist[0].id];
+
+    return closesetEnemy;
+  }
 
   // start strategies
 
@@ -362,7 +388,7 @@ class Autopilot {
         angle: state.angle,
       }
     });
-    
+
     (state.radio.inbox || [])
       .filter(message => message.type === 'friendly')
       .forEach(message => friendlies[message.friendly.id] = {...friendlies[message.friendly.id], ...message.friendly})
@@ -388,7 +414,7 @@ class Autopilot {
     if (!imShootingEnemy) {
       return;
     }
-    
+
     const myAngle = Math.deg.atan2(imShootingEnemy.x - state.x, imShootingEnemy.y - state.y);
 
     const alliesShootingSameWithAngle = Object.entries(whosShootingWho)
@@ -415,20 +441,21 @@ class Autopilot {
     if (!closestAngle) {
       return;
     }
-    
+
 
     const directionToMove = closestAngle['diff'] > 0 ? -1 : 1;
     const idealAngle = Math.deg.atan2(imShootingEnemy.y - state.y, imShootingEnemy.x - state.x) - (90 * directionToMove);
-  
+
     return {
       TURN: Math.deg.normalize(idealAngle - state.angle)
     }
   };
 
   const lockRadarOnNearbyEnemies = (state, control) => {
-    const [enemy, ...otherEnemies] = Object.values(enemies)
+    const imShootingId = whosShootingWho[String(myId)];
+    const enemy = imShootingId && enemies[imShootingId];
 
-    if (enemy && otherEnemies.length === 0) {
+    if (enemy) {
       autopilot.lookAtEnemy(enemy);
     }
   };
@@ -442,19 +469,7 @@ class Autopilot {
   };
 
   const shootAtVisibleTanks = (state, control) => {
-    const enemyIds = Object.keys(enemies);
-    let enemyDist = [];
-    if (enemyIds.length > 0) {
-      for (let e in enemyIds) {
-        eNow = enemies[enemyIds[e]];
-        enemyDist.push({
-          distance: Math.distance(eNow.x, eNow.y, state.x, state.y),
-          id: eNow.id,
-        });
-      }
-    }
-    sortByKey(enemyDist, "distance");
-    const enemy = enemyIds.length > 0 && enemies[enemyDist[0].id];
+    const enemy = whoShouldIShoot(state, control);
 
     whosShootingWho[String(myId)] = enemy.id;
     control.OUTBOX.push({type: 'shooting', target: enemy.id, me: myId})
@@ -464,7 +479,7 @@ class Autopilot {
       const distance = Math.distance(enemy.x, enemy.y, state.x, state.y);
       if (
         distance < 50 ||
-        (instruction.SHOOT && distance < 180 && enemy.speed < 1)// && Math.random() > 0.25)
+        (instruction.SHOOT && distance < 180 && enemy.speed < 1)
       ) {
         instruction.SHOOT = 1;
       }
@@ -473,22 +488,45 @@ class Autopilot {
   };
 
   const ramJamro = (state, control) => {
-    const [enemy] = Object.values(enemies)
+    if (state.energy < 50) {
+      return
+    }
 
-    if (enemy && state.collisions.enemy) {
+    const enemiesWithInfo = Object.values(enemies)
+      .map(enemy => {
+        const targetAngle = Math.deg.atan2(enemy.y - state.y, enemy.x - state.x);
+        const angleDiff = Math.deg.normalize(targetAngle - state.angle);
+        const distance = Math.distance(enemy.x, enemy.y, state.x, state.y);
+
+        return {
+          enemy,
+          angleDiff,
+          targetAngle,
+          distance,
+        };
+      })
+      .filter(({angleDiff, distance}) =>
+        angleDiff < 30 && distance < 80 ||
+        angleDiff < 60 && distance < 70 ||
+        angleDiff < 80 && distance < 60 ||
+        angleDiff < 100 && distance < 50 ||
+        angleDiff < 120 && distance < 40 ||
+        angleDiff < 180 && distance < 30
+      )
+    ;
+
+    sortByKey(enemiesWithInfo, 'distance');
+
+    const {enemy, angleDiff, distance} = enemiesWithInfo[0] || {enemy: undefined};
+
+    if (state.collisions.enemy) {
       return [
         {command: {THROTTLE: -1, BOOST: 1}, until: tick + 5},
-        {command: {THROTTLE: -1, BOOST: 1}, until: tick + 20}
+        {command: {THROTTLE: -1, BOOST: 0}, until: tick + 20}
       ]
     } else if (enemy) {
-      const targetAngle = Math.deg.atan2(enemy.y - state.y, enemy.x - state.x);
-      const distance = Math.distance(enemy.x, enemy.y, state.x, state.y);
-
-      if (Math.abs(targetAngle - state.angle) < 20 && distance < 80) {
-        console.log('RAMMING SPEED');
-        const angleDiff = Math.deg.normalize(targetAngle - state.angle);
-        return {command: {TURN: angleDiff, THROTTLE: 1, BOOST: distance < 40 ? 1 : 0}}
-      }
+      console.log('RAMMING SPEED');
+      return {command: {TURN: angleDiff, THROTTLE: 1, BOOST: distance < 40 ? 1 : 0}}
     }
   };
 
@@ -540,23 +578,67 @@ class Autopilot {
     }
   };
 
-  const tryToMaintainDistance = (state, control) => {
-    const [enemy, ...otherEnemies] = Object.values(enemies)
+  const moveTowardsTarget = (state, control) => {
+    const enemy = whoShouldIShoot(state, control);
+    const distance = enemy && Math.distance(enemy.x, enemy.y, state.x, state.y);
 
-    if (enemy && otherEnemies.length === 0) {
-      const distance = Math.distance(enemy.x, enemy.y, state.x, state.y);
-
-      if (distance < 50) {
-        let targetAngle = Math.deg.atan2(enemy.y - state.y, enemy.x - state.x);
-        let angleDiff = Math.deg.normalize(targetAngle - state.angle);
-        return {command: {TURN: angleDiff * -1}}
-      }
-      if (distance > 250) {
-        let targetAngle = Math.deg.atan2(enemy.y - state.y, enemy.x - state.x);
-        let angleDiff = Math.deg.normalize(targetAngle - state.angle);
-        return {command: {TURN: angleDiff}}
-      }
+    if (enemy && distance > 250) {
+      let targetAngle = Math.deg.atan2(enemy.y - state.y, enemy.x - state.x);
+      let angleDiff = Math.deg.normalize(targetAngle - state.angle);
+      return {command: {TURN: angleDiff}}
     }
+  };
+
+  const dontGetTooClose = (state, control) => {
+
+    const tanksWithInfo = [...Object.values(enemies), ...Object.values(friendlies)]
+      .filter(tank => tank.id != myId)
+      .map(tank => {
+        const targetAngle = Math.deg.atan2(tank.y - state.y, tank.x - state.x);
+        const distance = Math.distance(tank.x, tank.y, state.x, state.y);
+
+        return {
+          tank,
+          targetAngle,
+          distance,
+        };
+      })
+      .filter(info => info.distance < 150);
+
+    sortByKey(tanksWithInfo, 'targetAngle');
+
+    if (tanksWithInfo.length < 1) {
+      return;
+    }
+
+    tanksWithInfo.push(tanksWithInfo[0]);
+
+    const gaps = []
+
+    for(let i = 0; i < tanksWithInfo.length - 1; i++) {
+      let angle = tanksWithInfo[i + 1].targetAngle - tanksWithInfo[i].targetAngle;
+
+      if (angle <= 0) {
+        angle += 180
+      }
+
+      const middle = tanksWithInfo[i].targetAngle + (angle / 2);
+      gaps.push({
+        angle,
+        middle,
+        angleDiff: Math.deg.normalize(middle - state.angle)
+      });
+    }
+
+    console.log(myId, gaps);
+
+    const bigGaps = gaps.filter(gap => gap.angle > 40)
+
+    sortByKey(bigGaps, 'angleDiff');
+
+    const closestGap = bigGaps[0];
+
+    return {command: {TURN: closestGap.angleDiff}}
   };
 
   const alwaysBeDriving = (state, control) => ({command: {
@@ -603,11 +685,12 @@ class Autopilot {
       moveRandomly,
       trackLastKnownEnemy,
       shootAtVisibleTanks,
-      tryToMaintainDistance,
+      moveTowardsTarget,
+      dontGetTooClose,
       surroundEnemies,
       dodgeBullets,
-      ramJamro,
       avoidCollidingWithWalls,
+      ramJamro,
       avoidSelfCollision,
     ].reduce((result, strategy) => {
       const memory = (commandMemory.get(strategy) || []).filter(record => record.until > tick);
