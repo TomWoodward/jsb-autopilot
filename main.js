@@ -630,8 +630,6 @@ class Autopilot {
       });
     }
 
-    console.log(myId, gaps);
-
     const bigGaps = gaps.filter(gap => gap.angle > 40)
 
     sortByKey(bigGaps, 'angleDiff');
