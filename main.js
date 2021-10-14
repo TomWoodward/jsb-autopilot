@@ -413,7 +413,10 @@ class Autopilot {
     const [enemy] = Object.values(enemies)
 
     if (enemy && state.collisions.enemy) {
-      return {command: {THROTTLE: -1, BOOST: 1}, until: tick + 20}
+      return [
+        {command: {THROTTLE: -1, BOOST: 1}, until: tick + 5},
+        {command: {THROTTLE: -1, BOOST: 1}, until: tick + 20}
+      ]
     } else if (enemy) {
       const targetAngle = Math.deg.atan2(enemy.y - state.y, enemy.x - state.x);
       const distance = Math.distance(enemy.x, enemy.y, state.x, state.y);
@@ -421,7 +424,7 @@ class Autopilot {
       if (Math.abs(targetAngle - state.angle) < 20 && distance < 80) {
         console.log('RAMMING SPEED');
         const angleDiff = Math.deg.normalize(targetAngle - state.angle);
-        return {command: {TURN: angleDiff, THROTTLE: 1, BOOST: 1}}
+        return {command: {TURN: angleDiff, THROTTLE: 1, BOOST: distance < 40 ? 1 : 0}}
       }
     }
   };
